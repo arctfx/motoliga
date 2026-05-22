@@ -237,7 +237,7 @@ function getEvents() {
     {
       id: "1",
       name: "Sofia Drift Championship",
-      videoUrl: "/videos/drift.mp4",
+      videoUrl: "https://www.youtube.com/watch?v=NLnbL4mvoC0",
       results: [
         { name: "Ivan Petrov" },
         { name: "Georgi Ivanov" },
