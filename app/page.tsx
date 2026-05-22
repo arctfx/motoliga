@@ -104,9 +104,13 @@ function MotorsportEventDetail({ id, onBack }: any) {
 
       <div className="p-6 grid grid-cols-4 gap-6">
         <div className="col-span-3">
-          <video controls className="w-full rounded-lg" src={event.videoUrl} />
+          <LiveReplayPlayer src={event.videoUrl} />
         </div>
-
+        <div className="flex gap-2 text-xs bg-black/70 p-2 rounded">
+          <span>🏁 LAP 18/24</span>
+          <span>⚡ SPEED 142 km/h</span>
+          <span>⏱ GAP +1.2s</span>
+        </div>
         <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
           <h3 className="mb-4 font-bold">Classification</h3>
 
@@ -245,6 +249,58 @@ function getEvents() {
 
 function getEventById(id: string) {
   return getEvents().find((e) => e.id === id) || null;
+}
+
+function LiveReplayPlayer({ src }: { src: string }) {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  React.useEffect(() => {
+    const video = videoRef.current;
+
+    if (!video) return;
+
+    // Pretend the event started 12 minutes ago
+    const STREAM_START = new Date().getTime() - 12 * 60 * 1000;
+
+    const syncVideo = () => {
+      const now = new Date().getTime();
+
+      // seconds since fake stream began
+      const livePosition = ((now - STREAM_START) / 1000);
+
+      // loop video continuously
+      if (video.duration) {
+        video.currentTime = livePosition % video.duration;
+      }
+
+      video.play().catch(() => {});
+    };
+
+    syncVideo();
+
+    const interval = setInterval(syncVideo, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="relative">
+      <div className="absolute top-3 left-3 z-10 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold animate-pulse">
+        LIVE
+      </div>
+
+      <video
+        ref={videoRef}
+        className="w-full rounded-lg"
+        muted
+        autoPlay
+        playsInline
+        controls
+      >
+        <source src={src} type="video/mp4" />
+      </video>
+    </div>
+  );
 }
 
 // =========================
