@@ -5,7 +5,7 @@
 // - Max 3 drivers
 // - Fantasy scoring
 // - Final race classification view
-
+"use client";
 import React, { useMemo, useState } from "react";
 
 export default function MotorsportAppRoot() {
@@ -15,7 +15,7 @@ export default function MotorsportAppRoot() {
   if (route === "events") {
     return (
       <MotorsportEventsPage
-        onOpenEvent={(id) => {
+        onOpenEvent={(id: React.SetStateAction<string | null>) => {
           setSelectedEventId(id);
           setRoute("eventDetail");
         }}
