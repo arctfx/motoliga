@@ -2,6 +2,37 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
+const TICK_LISTENERS: Function[] = [];
+
+function useRaceTick(interval = 1000) {
+  const [tick, setTick] = React.useState(0);
+
+  React.useEffect(() => {
+    TICK_LISTENERS.push(setTick);
+
+    return () => {
+      const i = TICK_LISTENERS.indexOf(setTick);
+      if (i > -1) TICK_LISTENERS.splice(i, 1);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      TICK_LISTENERS.forEach((fn) => fn((t: number) => t + 1));
+    }, interval);
+
+    return () => clearInterval(id);
+  }, [interval]);
+
+  return tick;
+}
+
+
+
+/* ======================================================
+   GLOBAL TEAM STATE
+====================================================== */
+
 let GLOBAL_TEAM: any[] = [];
 let TEAM_LISTENERS: Function[] = [];
 
@@ -23,37 +54,29 @@ function useGlobalTeam() {
   return [team, setGlobalTeam] as const;
 }
 
+/* ======================================================
+   APP ROOT
+====================================================== */
+
 export default function MotorsportAppRoot() {
   const [route, setRoute] = useState("streams");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const events = getEvents();
-
   const liveEvents = events.filter((e) => e.live);
   const finishedEvents = events.filter((e) => !e.live);
 
-  // -------------------------
-  // EVENT DETAIL
-  // -------------------------
   if (route === "event" && selectedEventId) {
     const event = events.find((e) => e.id === selectedEventId);
     if (!event) return null;
 
-    return (
-      <EventPage event={event} onBack={() => setRoute("streams")} />
-    );
+    return <EventPage event={event} onBack={() => setRoute("streams")} />;
   }
 
-  // -------------------------
-  // FANTASY PAGE
-  // -------------------------
   if (route === "fantasy") {
     return <FantasyPage onBack={() => setRoute("streams")} />;
   }
 
-  // -------------------------
-  // STREAMS PAGE
-  // -------------------------
   return (
     <div className="min-h-screen bg-black text-white p-8">
       <div className="flex justify-between items-center mb-6">
@@ -67,113 +90,85 @@ export default function MotorsportAppRoot() {
         </button>
       </div>
 
-      <section className="mb-10">
-        <h2 className="text-xl font-bold text-red-500 mb-4">🔴 Live Now</h2>
-        <div className="grid gap-4">
-          {liveEvents.map((e) => (
-            <div
-              key={e.id}
-              onClick={() => {
-                setSelectedEventId(e.id);
-                setRoute("event");
-              }}
-              className="p-4 border border-red-600 bg-zinc-900 rounded-xl cursor-pointer"
-            >
-              <div className="font-bold">{e.name}</div>
-              <div className="text-sm text-zinc-400">{e.track}</div>
-              <span className="text-xs text-red-400">LIVE</span>
-            </div>
-          ))}
-        </div>
-      </section>
+      <Section title="🔴 Live Now" color="text-red-500">
+        {liveEvents.map((e) => (
+          <EventCard key={e.id} event={e} onClick={() => {
+            setSelectedEventId(e.id);
+            setRoute("event");
+          }} />
+        ))}
+      </Section>
 
-      <section>
-        <h2 className="text-xl font-bold mb-4">Finished Streams</h2>
-        <div className="grid gap-4">
-          {finishedEvents.map((e) => (
-            <div
-              key={e.id}
-              onClick={() => {
-                setSelectedEventId(e.id);
-                setRoute("event");
-              }}
-              className="p-4 border border-zinc-700 bg-zinc-900 rounded-xl cursor-pointer"
-            >
-              <div className="font-bold">{e.name}</div>
-              <div className="text-sm text-zinc-400">{e.track}</div>
-              <span className="text-xs text-zinc-500">FINISHED</span>
-            </div>
-          ))}
-        </div>
-      </section>
+      <Section title="Finished Streams">
+        {finishedEvents.map((e) => (
+          <EventCard key={e.id} event={e} onClick={() => {
+            setSelectedEventId(e.id);
+            setRoute("event");
+          }} />
+        ))}
+      </Section>
     </div>
   );
 }
 
-// ======================================================
-// EVENT PAGE
-// ======================================================
+/* ======================================================
+   EVENT PAGE
+====================================================== */
+
 function EventPage({ event, onBack }: any) {
+  React.useEffect(() => {
+    initRaceEngine();
+  }, []);
+
+  const tick = useRaceTick(1000);
   const drivers = getDrivers();
   const [team] = useGlobalTeam();
-  const score = React.useMemo(() => calculateFantasyPoints(team), [team]);
+
+  const score = useMemo(() => calculateFantasyPoints(team), [team]);
+
+  const ranked = React.useMemo(() => getRankedDrivers(), [tick]);
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-      <button onClick={onBack} className="text-zinc-400 mb-4">
-        ← Back
-      </button>
+      <button onClick={onBack} className="text-zinc-400 mb-4">← Back</button>
 
       <h1 className="text-2xl font-bold mb-4">{event.name}</h1>
 
-      <div className="aspect-video mb-6">
-        <BufferedLiveStream youtubeId={event.youtubeId} />
+      <div className="mb-6">
+        <div className="aspect-video">
+          <BufferedLiveStream youtubeId={event.youtubeId} />
+        </div>
       </div>
 
-      <h2 className="font-bold mb-3">Drivers</h2>
-
-      <h2 className="font-bold mb-3">
-        Drivers
-      </h2>
-
+      {/* TEAM SCORE */}
       <div className="mb-4 p-3 bg-zinc-900 rounded-xl">
-        <div className="text-sm text-zinc-400">
-          Your Live Fantasy Points
-        </div>
-
-        <div className="text-xl font-bold text-green-400">
-          {score}
-        </div>
+        <div className="text-sm text-zinc-400">Your Fantasy Points</div>
+        <div className="text-xl font-bold text-green-400">{score}</div>
       </div>
 
+      {/* DRIVERS GRID */}
       <div className="grid md:grid-cols-3 gap-3">
-        {drivers.map((d) => {
+        {ranked.map((d) => {
           const isSelected = team.find((t) => t.id === d.id);
-          const pos = getDriverPosition(d.id);
 
           return (
             <div
               key={d.id}
-              className={`p-3 rounded-xl border transition ${isSelected
-                  ? "bg-green-700 border-green-400 shadow-lg"
+              className={`p-3 rounded-xl border transition-all duration-500 ${
+                isSelected
+                  ? "bg-green-700 border-green-400"
                   : "bg-zinc-900 border-zinc-800"
-                }`}
+              }`}
             >
-              <div className="font-bold flex justify-between">
+              <div className="flex justify-between font-bold">
                 {d.name}
-
-                {isSelected && (
-                  <span className="text-xs text-black bg-green-300 px-2 rounded">
-                    YOUR DRIVER
-                  </span>
-                )}
+                <span className="text-xs bg-black/40 px-2 rounded">
+                  P{d.position}
+                </span>
               </div>
 
               <div className="text-sm text-zinc-400">{d.team}</div>
-
-              <div className="text-xs text-zinc-500">
-                Position: {pos} | ${d.value}M
-              </div>
+              <div className="text-xs text-zinc-500">${d.value}M</div>
             </div>
           );
         })}
@@ -182,66 +177,14 @@ function EventPage({ event, onBack }: any) {
   );
 }
 
-// ======================================================
-// FANTASY ENGINE (LIVE + PERSISTENT + SCORING)
-// ======================================================
-const DRIVER_STATE: Record<number, number> = {};
+/* ======================================================
+   FANTASY PAGE
+====================================================== */
 
-function getDriverPosition(driverId: number) {
-  if (!DRIVER_STATE[driverId]) {
-    DRIVER_STATE[driverId] = Math.floor(Math.random() * 10) + 1;
-  }
-
-  const drift = Math.random() < 0.4 ? (Math.random() < 0.5 ? -1 : 1) : 0;
-
-  DRIVER_STATE[driverId] = Math.max(
-    1,
-    Math.min(10, DRIVER_STATE[driverId] + drift)
-  );
-
-  return DRIVER_STATE[driverId];
-}
-
-function calculateFantasyPoints(team: any[]) {
-  const pointsTable: Record<number, number> = {
-    1: 25,
-    2: 18,
-    3: 15,
-    4: 12,
-    5: 10,
-    6: 8,
-    7: 6,
-    8: 4,
-    9: 2,
-    10: 1,
-  };
-
-  return team.reduce((t, d) => {
-    const pos = getDriverPosition(d.id);
-    return t + (pointsTable[pos] || 0);
-  }, 0);
-}
-
-// ======================================================
-// FANTASY PAGE
-// ======================================================
 function FantasyPage({ onBack }: any) {
+  const tick = useRaceTick(1000);
   const drivers = getDrivers();
-
   const [team, setTeam] = useGlobalTeam();
-
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    localStorage.setItem("fantasy_team", JSON.stringify(team));
-  }, [team]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTick((t) => t + 1);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
 
   const budget = 30;
   const spent = team.reduce((s, d) => s + d.value, 0);
@@ -264,20 +207,16 @@ function FantasyPage({ onBack }: any) {
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
-      <button onClick={onBack} className="text-zinc-400 mb-4">
-        ← Back
-      </button>
+      <button onClick={onBack} className="text-zinc-400 mb-4">← Back</button>
 
-      <h1 className="text-3xl font-bold mb-2">🏎 Fantasy League</h1>
+      <h1 className="text-3xl font-bold mb-4">🏎 Fantasy League</h1>
 
       <div className="mb-6 text-sm text-zinc-400">
         Budget: ${budget}M | Spent: ${spent}M |{" "}
-        <span className="text-green-400 font-bold">
-          Live Points: {score}
-        </span>
+        <span className="text-green-400 font-bold">Points: {score}</span>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4 mb-8">
+      <div className="grid md:grid-cols-3 gap-4">
         {drivers.map((d) => {
           const selected = team.find((t) => t.id === d.id);
 
@@ -285,10 +224,11 @@ function FantasyPage({ onBack }: any) {
             <div
               key={d.id}
               onClick={() => toggleDriver(d)}
-              className={`p-4 rounded-xl border cursor-pointer ${selected
+              className={`p-4 rounded-xl border cursor-pointer ${
+                selected
                   ? "bg-green-700 border-green-400"
                   : "bg-zinc-900 border-zinc-700"
-                }`}
+              }`}
             >
               <div className="font-bold">{d.name}</div>
               <div className="text-sm text-zinc-400">{d.team}</div>
@@ -297,124 +237,275 @@ function FantasyPage({ onBack }: any) {
           );
         })}
       </div>
-
-      <div className="p-4 bg-zinc-900 rounded-xl">
-        <h2 className="font-bold mb-2">Your Team</h2>
-
-        {team.length === 0 && (
-          <p className="text-zinc-500">No drivers selected</p>
-        )}
-
-        {team.map((d) => (
-          <div key={d.id} className="text-sm">
-            {d.name}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
 
-// ======================================================
-// STREAM PLAYER (FIXED LIVE DVR SYSTEM)
-// ======================================================
-function BufferedLiveStream({ youtubeId }: { youtubeId: string }) {
-  const STREAM_START_TIME = React.useMemo(() => Date.now() - 120 * 60 * 1000, []);
+/* ======================================================
+   RACE ENGINE
+====================================================== */
 
-  const [playerKey, setPlayerKey] = useState(0);
-  const [mode, setMode] = useState<"live" | "dvr">("live");
-  const [scrubTime, setScrubTime] = useState(0);
+const DRIVER_STATE: Record<number, { score: number }> = {};
+let RACE_STARTED = false;
 
-  const now = Date.now();
-  const liveSeconds = Math.max(0, Math.floor((now - STREAM_START_TIME) / 1000));
+function initRaceEngine() {
+  if (RACE_STARTED) return;
+  RACE_STARTED = true;
 
-  const minAllowed = 0;
-  const maxAllowed = liveSeconds;
+  getDrivers().forEach((d) => {
+    DRIVER_STATE[d.id] = { score: Math.random() * 100 };
+  });
 
-  const currentTime = mode === "live" ? liveSeconds : scrubTime;
+  setInterval(() => {
+    getDrivers().forEach((d) => {
+      DRIVER_STATE[d.id].score += (Math.random() - 0.5) * 10;
+    });
+  }, 5000);
+}
 
-  function seekTo(time: number) {
-    const clamped = Math.min(Math.max(time, minAllowed), maxAllowed);
+function getRankedDrivers() {
+  return getDrivers()
+    .map((d) => ({
+      ...d,
+      score: DRIVER_STATE[d.id]?.score ?? 0,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((d, i) => ({
+      ...d,
+      position: i + 1,
+    }));
+}
 
-    setMode("dvr");
-    setScrubTime(clamped);
-    setPlayerKey((k) => k + 1);
+/* ======================================================
+   FANTASY SCORING
+====================================================== */
+
+function calculateFantasyPoints(team: any[]) {
+  const points: Record<number, number> = {
+    1: 25, 2: 18, 3: 15, 4: 12, 5: 10,
+    6: 8, 7: 6, 8: 4, 9: 2, 10: 1,
+  };
+
+  const ranked = getRankedDrivers();
+
+  return team.reduce((total, driver) => {
+    const found = ranked.find((d) => d.id === driver.id);
+    const pos = found?.position ?? 999;
+    return total + (points[pos] || 0);
+  }, 0);
+}
+
+/* ======================================================
+   STREAM PLAYER
+   - Uses the YouTube IFrame Player API (not a raw <iframe src>)
+     so we can call player.seekTo() to scrub through the buffer.
+     Changing an <iframe src> forces a full reload (the original
+     bug); seekTo() jumps instantly without reloading anything.
+   - The player is created once on mount and never recreated, so
+     it's immune to the parent's once-per-second race-tick
+     re-renders.
+   - "Live edge" = how many seconds of buffered video exist right
+     now. It grows by 1 every second on its own internal timer,
+     independent of the driver table's tick.
+====================================================== */
+
+const STREAM_BUFFER_SECONDS = 120 * 60; // 2 hours of pre-roll buffer
+
+let ytApiPromise: Promise<void> | null = null;
+function loadYouTubeApi(): Promise<void> {
+  if ((window as any).YT && (window as any).YT.Player) {
+    return Promise.resolve();
+  }
+  if (ytApiPromise) return ytApiPromise;
+
+  ytApiPromise = new Promise((resolve) => {
+    const prevCallback = (window as any).onYouTubeIframeAPIReady;
+    (window as any).onYouTubeIframeAPIReady = () => {
+      prevCallback?.();
+      resolve();
+    };
+    if (!document.getElementById("youtube-iframe-api")) {
+      const tag = document.createElement("script");
+      tag.id = "youtube-iframe-api";
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    }
+  });
+
+  return ytApiPromise;
+}
+
+const BufferedLiveStream = React.memo(function BufferedLiveStream({
+  youtubeId,
+}: {
+  youtubeId: string;
+}) {
+  const mountedAt = React.useRef(Date.now());
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const playerRef = React.useRef<any>(null);
+
+  const [playerReady, setPlayerReady] = useState(false);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [liveEdge, setLiveEdge] = useState(STREAM_BUFFER_SECONDS);
+  const [position, setPosition] = useState(STREAM_BUFFER_SECONDS);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isLive, setIsLive] = useState(true);
+
+  // Create the player once on mount.
+  React.useEffect(() => {
+    let cancelled = false;
+
+    loadYouTubeApi().then(() => {
+      if (cancelled || !containerRef.current || playerRef.current) return;
+
+      playerRef.current = new (window as any).YT.Player(containerRef.current, {
+        videoId: youtubeId,
+        width: "100%",
+        height: "100%",
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 0,
+          modestbranding: 1,
+          rel: 0,
+          start: STREAM_BUFFER_SECONDS,
+        },
+        events: {
+          onReady: (e: any) => {
+            setVideoDuration(e.target.getDuration?.() || null);
+            setPlayerReady(true);
+          },
+        },
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      playerRef.current?.destroy?.();
+      playerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [youtubeId]);
+
+  // Independent 1s timer: advances the live edge and polls playback
+  // position. Does not touch the iframe, so nothing reloads.
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - mountedAt.current) / 1000);
+      const edge = videoDuration
+        ? Math.min(STREAM_BUFFER_SECONDS + elapsed, videoDuration)
+        : STREAM_BUFFER_SECONDS + elapsed;
+      setLiveEdge(edge);
+
+      if (playerRef.current?.getCurrentTime && !isDragging) {
+        const current = playerRef.current.getCurrentTime();
+        setPosition(current);
+        setIsLive(edge - current < 3);
+      }
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [isDragging, videoDuration]);
+
+  function commitSeek(value: number) {
+    playerRef.current?.seekTo?.(value, true);
+    setIsDragging(false);
+    setIsLive(liveEdge - value < 3);
   }
 
-  function goLive() {
-    setMode("live");
-    setScrubTime(liveSeconds);
-    setPlayerKey((k) => k + 1);
+  function jumpToLive() {
+    playerRef.current?.seekTo?.(liveEdge, true);
+    playerRef.current?.playVideo?.();
+    setPosition(liveEdge);
+    setIsLive(true);
   }
 
-  function format(sec: number) {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
+  function formatBehindLive(value: number) {
+    const behind = Math.max(0, liveEdge - value);
+    if (behind < 2) return "LIVE";
+    const h = Math.floor(behind / 3600);
+    const m = Math.floor((behind % 3600) / 60);
+    const s = Math.floor(behind % 60);
+    const mm = String(m).padStart(2, "0");
+    const ss = String(s).padStart(2, "0");
+    return `-${h > 0 ? `${h}:` : ""}${mm}:${ss}`;
   }
-
-  const progress =
-    maxAllowed > 0 ? ((currentTime - minAllowed) / (maxAllowed - minAllowed)) * 100 : 0;
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full flex flex-col bg-black">
+      <div className="relative flex-1 min-h-0">
+        <div ref={containerRef} className="w-full h-full" />
+        {!playerReady && (
+          <div className="absolute inset-0 flex items-center justify-center text-zinc-500 text-sm">
+            Loading stream…
+          </div>
+        )}
+      </div>
 
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+      <div className="flex items-center gap-3 bg-zinc-900 px-3 py-2">
+        {isLive ? (
+          <span className="flex items-center gap-1 text-red-500 text-xs font-bold shrink-0 w-16">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             LIVE
           </span>
-
+        ) : (
           <button
-            onClick={goLive}
-            className="px-3 py-1 bg-zinc-800 rounded text-xs"
+            onClick={jumpToLive}
+            className="text-xs font-bold text-zinc-300 hover:text-white shrink-0 px-2 py-1 rounded bg-zinc-800 w-16"
           >
-            Go LIVE
+            ⏵ Live
           </button>
-        </div>
-
-        <div className="text-xs text-zinc-400">
-          DVR: {format(currentTime)} / {format(liveSeconds)}
-        </div>
-      </div>
-
-      <div className="aspect-video rounded-xl overflow-hidden border border-zinc-700 mb-3">
-        <iframe
-          key={playerKey}
-          className="w-full h-full"
-          src={`https://www.youtube.com/embed/${youtubeId}?start=${currentTime}&autoplay=1&mute=1&controls=0&rel=0`}
-          allowFullScreen
-        />
-      </div>
-
-      <div className="relative h-3 bg-zinc-800 rounded-full mb-2 overflow-hidden">
-        <div className="absolute top-0 left-0 h-full bg-zinc-600 w-full" />
-        <div
-          className="absolute top-0 h-full bg-red-500"
-          style={{ width: `${progress}%` }}
-        />
+        )}
 
         <input
           type="range"
-          min={minAllowed}
-          max={maxAllowed}
-          value={currentTime}
-          onChange={(e) => seekTo(Number(e.target.value))}
-          className="absolute w-full h-full opacity-0 cursor-pointer"
+          min={0}
+          max={liveEdge}
+          step={1}
+          value={position}
+          disabled={!playerReady}
+          onChange={(e) => setPosition(Number(e.target.value))}
+          onMouseDown={() => setIsDragging(true)}
+          onTouchStart={() => setIsDragging(true)}
+          onMouseUp={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
+          onTouchEnd={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
+          className="flex-1 accent-red-500"
         />
-      </div>
 
-      <div className="flex justify-between text-xs text-zinc-500">
-        <span>START</span>
-        <span>LIVE</span>
+        <span className="text-xs text-zinc-400 w-16 text-right shrink-0">
+          {formatBehindLive(position)}
+        </span>
       </div>
+    </div>
+  );
+});
+
+/* ======================================================
+   SMALL UI HELPERS
+====================================================== */
+
+function Section({ title, color, children }: any) {
+  return (
+    <section className="mb-10">
+      <h2 className={`text-xl font-bold mb-4 ${color || ""}`}>{title}</h2>
+      <div className="grid gap-4">{children}</div>
+    </section>
+  );
+}
+
+function EventCard({ event, onClick }: any) {
+  return (
+    <div onClick={onClick} className="p-4 bg-zinc-900 rounded-xl cursor-pointer">
+      <div className="font-bold">{event.name}</div>
+      <div className="text-sm text-zinc-400">{event.track}</div>
     </div>
   );
 }
 
-// ======================================================
-// DATA
-// ======================================================
+/* ======================================================
+   DATA
+====================================================== */
+
 function getDrivers() {
   return [
     { id: 1, name: "Ivan Petrov", team: "Red Line", value: 12 },
@@ -448,4 +539,3 @@ function getEvents() {
     },
   ];
 }
-
