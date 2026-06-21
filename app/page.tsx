@@ -55,6 +55,119 @@ function useGlobalTeam() {
 }
 
 /* ======================================================
+   BRAND — LOGO & SHARED CHROME
+   Reconstructed from the MOTOLIGA pitch deck: a 2x2 offset
+   red pixel mark + tracked-out wordmark.
+====================================================== */
+
+function MotoligaMark({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 28 28"
+      className={className}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect x="0" y="0" width="12" height="12" fill="#ff0039" />
+      <rect x="16" y="0" width="12" height="12" fill="#ff0039" />
+      <rect x="4" y="12" width="12" height="12" fill="#ff0039" />
+      <rect x="20" y="12" width="12" height="12" fill="#ff0039" opacity="0.55" />
+    </svg>
+  );
+}
+
+function MotoligaLogo({
+  size = "md",
+  className = "",
+}: {
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  const dims =
+    size === "lg"
+      ? { mark: "w-9 h-9", text: "text-2xl", gap: "gap-3" }
+      : size === "sm"
+      ? { mark: "w-4 h-4", text: "text-sm", gap: "gap-2" }
+      : { mark: "w-6 h-6", text: "text-lg", gap: "gap-2.5" };
+
+  return (
+    <div className={`flex items-center ${dims.gap} ${className}`}>
+      <MotoligaMark className={`${dims.mark} shrink-0`} />
+      <span
+        className={`font-mono font-bold tracking-[0.12em] uppercase ${dims.text}`}
+        style={{ color: "var(--ml-text)" }}
+      >
+        Motoliga
+      </span>
+    </div>
+  );
+}
+
+function Eyebrow({ index }: { index: string }) {
+  return (
+    <div className="flex items-center justify-between font-mono text-[11px] sm:text-xs tracking-[0.2em] uppercase">
+      <span className="text-ml-red">{index}</span>
+      <span className="text-ml-text-ghost">Motoliga</span>
+    </div>
+  );
+}
+
+function SectionRule() {
+  return (
+    <div
+      className="h-px my-4"
+      style={{
+        background:
+          "linear-gradient(90deg, var(--ml-red) 0 48px, var(--ml-border) 48px)",
+      }}
+    />
+  );
+}
+
+function AppHeader({
+  onLogoClick,
+  right,
+}: {
+  onLogoClick?: () => void;
+  right?: React.ReactNode;
+}) {
+  return (
+    <header
+      className="sticky top-0 z-20 flex items-center justify-between px-5 sm:px-8 py-4 border-b backdrop-blur"
+      style={{
+        borderColor: "var(--ml-border)",
+        background: "rgba(12,13,16,0.85)",
+      }}
+    >
+      <button
+        onClick={onLogoClick}
+        className="cursor-pointer disabled:cursor-default"
+        disabled={!onLogoClick}
+        aria-label="Motoliga home"
+      >
+        <MotoligaLogo size="md" />
+      </button>
+      {right}
+    </header>
+  );
+}
+
+function AppFooter() {
+  return (
+    <footer
+      className="px-5 sm:px-8 py-6 border-t flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between"
+      style={{ borderColor: "var(--ml-border)" }}
+    >
+      <MotoligaLogo size="sm" />
+      <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-ml-text-ghost">
+        Grassroots motorsport, live
+      </span>
+    </footer>
+  );
+}
+
+/* ======================================================
    APP ROOT
 ====================================================== */
 
@@ -78,35 +191,59 @@ export default function MotorsportAppRoot() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">🏁 Motorsport Streams</h1>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--ml-bg)" }}>
+      <AppHeader
+        right={
+          <button
+            onClick={() => setRoute("fantasy")}
+            className="font-mono text-xs sm:text-sm font-bold tracking-[0.1em] uppercase px-4 py-2 border transition-colors hover:bg-ml-red hover:text-[#0c0d10]"
+            style={{ borderColor: "var(--ml-red)", color: "var(--ml-red)" }}
+          >
+            Fantasy League
+          </button>
+        }
+      />
 
-        <button
-          onClick={() => setRoute("fantasy")}
-          className="px-4 py-2 bg-purple-600 rounded-lg"
-        >
-          Fantasy League
-        </button>
-      </div>
+      <main className="flex-1 px-5 sm:px-8 py-8 sm:py-10 max-w-6xl w-full mx-auto">
+        <Eyebrow index="01 / Streams" />
+        <SectionRule />
 
-      <Section title="🔴 Live Now" color="text-red-500">
-        {liveEvents.map((e) => (
-          <EventCard key={e.id} event={e} onClick={() => {
-            setSelectedEventId(e.id);
-            setRoute("event");
-          }} />
-        ))}
-      </Section>
+        <h1 className="font-extrabold tracking-tight leading-[0.95] mb-2 text-[clamp(2rem,5vw,3.25rem)]">
+          Watch the league,{" "}
+          <span style={{ color: "var(--ml-red)" }}>live</span>.
+        </h1>
+        <p className="text-ml-text-mute text-sm sm:text-base max-w-xl mb-10">
+          Stream, standings, and fantasy points in one place — updating every lap.
+        </p>
 
-      <Section title="Finished Streams">
-        {finishedEvents.map((e) => (
-          <EventCard key={e.id} event={e} onClick={() => {
-            setSelectedEventId(e.id);
-            setRoute("event");
-          }} />
-        ))}
-      </Section>
+        <Section title="Live now" live count={liveEvents.length}>
+          {liveEvents.map((e) => (
+            <EventCard
+              key={e.id}
+              event={e}
+              onClick={() => {
+                setSelectedEventId(e.id);
+                setRoute("event");
+              }}
+            />
+          ))}
+        </Section>
+
+        <Section title="Finished streams" count={finishedEvents.length}>
+          {finishedEvents.map((e) => (
+            <EventCard
+              key={e.id}
+              event={e}
+              onClick={() => {
+                setSelectedEventId(e.id);
+                setRoute("event");
+              }}
+            />
+          ))}
+        </Section>
+      </main>
+
+      <AppFooter />
     </div>
   );
 }
@@ -129,50 +266,94 @@ function EventPage({ event, onBack }: any) {
   const ranked = React.useMemo(() => getRankedDrivers(), [tick]);
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <button onClick={onBack} className="text-zinc-400 mb-4">← Back</button>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--ml-bg)" }}>
+      <AppHeader onLogoClick={onBack} />
 
-      <h1 className="text-2xl font-bold mb-4">{event.name}</h1>
+      <main className="flex-1 px-5 sm:px-8 py-6 sm:py-8 max-w-6xl w-full mx-auto">
+        <button
+          onClick={onBack}
+          className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text mb-5 transition-colors"
+        >
+          ← Back to streams
+        </button>
 
-      <div className="mb-6">
-        <div className="aspect-video">
-          <BufferedLiveStream youtubeId={event.youtubeId} />
-        </div>
-      </div>
-
-      {/* TEAM SCORE */}
-      <div className="mb-4 p-3 bg-zinc-900 rounded-xl">
-        <div className="text-sm text-zinc-400">Your Fantasy Points</div>
-        <div className="text-xl font-bold text-green-400">{score}</div>
-      </div>
-
-      {/* DRIVERS GRID */}
-      <div className="grid md:grid-cols-3 gap-3">
-        {ranked.map((d) => {
-          const isSelected = team.find((t) => t.id === d.id);
-
-          return (
-            <div
-              key={d.id}
-              className={`p-3 rounded-xl border transition-all duration-500 ${
-                isSelected
-                  ? "bg-green-700 border-green-400"
-                  : "bg-zinc-900 border-zinc-800"
-              }`}
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <h1 className="font-extrabold tracking-tight leading-tight text-[clamp(1.5rem,3.5vw,2.25rem)]">
+            {event.name}
+          </h1>
+          {event.live && (
+            <span
+              className="relative overflow-hidden shrink-0 flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-[0.14em] uppercase text-ml-red px-2.5 py-1 border"
+              style={{ borderColor: "var(--ml-red)" }}
             >
-              <div className="flex justify-between font-bold">
-                {d.name}
-                <span className="text-xs bg-black/40 px-2 rounded">
-                  P{d.position}
-                </span>
-              </div>
+              <span className="ml-stripes" />
+              <span className="relative w-1.5 h-1.5 rounded-full bg-ml-red ml-pulse" />
+              <span className="relative">Live</span>
+            </span>
+          )}
+        </div>
+        <p className="font-mono text-xs tracking-[0.1em] uppercase text-ml-text-ghost mb-6">
+          {event.track}
+        </p>
 
-              <div className="text-sm text-zinc-400">{d.team}</div>
-              <div className="text-xs text-zinc-500">${d.value}M</div>
-            </div>
-          );
-        })}
-      </div>
+        <div className="relative overflow-hidden mb-6 border" style={{ borderColor: "var(--ml-border)" }}>
+          {event.live && <div className="ml-stripes" />}
+          <div className="relative aspect-video">
+            <BufferedLiveStream youtubeId={event.youtubeId} />
+          </div>
+        </div>
+
+        {/* TEAM SCORE */}
+        <div
+          className="mb-6 p-4 border flex items-center justify-between"
+          style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)" }}
+        >
+          <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-ml-text-faint">
+            Your fantasy points
+          </div>
+          <div className="text-2xl font-extrabold" style={{ color: "var(--ml-red)" }}>
+            {score}
+          </div>
+        </div>
+
+        {/* DRIVERS GRID */}
+        <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-ml-text-faint mb-3">
+          Live standings
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {ranked.map((d) => {
+            const isSelected = team.find((t) => t.id === d.id);
+
+            return (
+              <div
+                key={d.id}
+                className="p-4 border transition-all duration-500"
+                style={{
+                  borderColor: isSelected ? "var(--ml-red)" : "var(--ml-border)",
+                  background: isSelected
+                    ? "linear-gradient(180deg, rgba(255,0,57,0.14), rgba(255,0,57,0.03))"
+                    : "var(--ml-surface)",
+                }}
+              >
+                <div className="flex justify-between items-start font-bold">
+                  <span>{d.name}</span>
+                  <span
+                    className="font-mono text-[11px] px-1.5 py-0.5 shrink-0"
+                    style={{ background: "rgba(0,0,0,0.35)", color: "var(--ml-text-dim)" }}
+                  >
+                    P{d.position}
+                  </span>
+                </div>
+
+                <div className="text-sm text-ml-text-mute mt-1">{d.team}</div>
+                <div className="font-mono text-xs text-ml-text-ghost mt-1">${d.value}M</div>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+
+      <AppFooter />
     </div>
   );
 }
@@ -206,37 +387,65 @@ function FantasyPage({ onBack }: any) {
   const score = calculateFantasyPoints(team);
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <button onClick={onBack} className="text-zinc-400 mb-4">← Back</button>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--ml-bg)" }}>
+      <AppHeader onLogoClick={onBack} />
 
-      <h1 className="text-3xl font-bold mb-4">🏎 Fantasy League</h1>
+      <main className="flex-1 px-5 sm:px-8 py-6 sm:py-8 max-w-6xl w-full mx-auto">
+        <button
+          onClick={onBack}
+          className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text mb-5 transition-colors"
+        >
+          ← Back to streams
+        </button>
 
-      <div className="mb-6 text-sm text-zinc-400">
-        Budget: ${budget}M | Spent: ${spent}M |{" "}
-        <span className="text-green-400 font-bold">Points: {score}</span>
-      </div>
+        <Eyebrow index="02 / Fantasy" />
+        <SectionRule />
 
-      <div className="grid md:grid-cols-3 gap-4">
-        {drivers.map((d) => {
-          const selected = team.find((t) => t.id === d.id);
+        <h1 className="font-extrabold tracking-tight leading-tight mb-6 text-[clamp(1.75rem,4vw,2.5rem)]">
+          Build your team.
+        </h1>
 
-          return (
-            <div
-              key={d.id}
-              onClick={() => toggleDriver(d)}
-              className={`p-4 rounded-xl border cursor-pointer ${
-                selected
-                  ? "bg-green-700 border-green-400"
-                  : "bg-zinc-900 border-zinc-700"
-              }`}
-            >
-              <div className="font-bold">{d.name}</div>
-              <div className="text-sm text-zinc-400">{d.team}</div>
-              <div className="text-xs text-zinc-500">${d.value}M</div>
-            </div>
-          );
-        })}
-      </div>
+        <div
+          className="flex flex-wrap gap-x-6 gap-y-2 mb-8 p-4 border font-mono text-xs sm:text-sm"
+          style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)" }}
+        >
+          <span className="text-ml-text-mute">
+            Budget <span className="text-ml-text font-bold">${budget}M</span>
+          </span>
+          <span className="text-ml-text-mute">
+            Spent <span className="text-ml-text font-bold">${spent}M</span>
+          </span>
+          <span style={{ color: "var(--ml-red)" }} className="font-bold">
+            Points: {score}
+          </span>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {drivers.map((d) => {
+            const selected = team.find((t) => t.id === d.id);
+
+            return (
+              <div
+                key={d.id}
+                onClick={() => toggleDriver(d)}
+                className="p-4 border cursor-pointer transition-colors"
+                style={{
+                  borderColor: selected ? "var(--ml-red)" : "var(--ml-border)",
+                  background: selected
+                    ? "linear-gradient(180deg, rgba(255,0,57,0.14), rgba(255,0,57,0.03))"
+                    : "var(--ml-surface)",
+                }}
+              >
+                <div className="font-bold">{d.name}</div>
+                <div className="text-sm text-ml-text-mute mt-1">{d.team}</div>
+                <div className="font-mono text-xs text-ml-text-ghost mt-1">${d.value}M</div>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+
+      <AppFooter />
     </div>
   );
 }
@@ -447,26 +656,32 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-black">
+    <div className="w-full h-full flex flex-col" style={{ background: "#000" }}>
       <div className="relative flex-1 min-h-0">
         <div ref={containerRef} className="w-full h-full" />
         {!playerReady && (
-          <div className="absolute inset-0 flex items-center justify-center text-zinc-500 text-sm">
-            Loading stream…
+          <div className="absolute inset-0 flex items-center justify-center font-mono text-xs tracking-[0.1em] uppercase text-ml-text-ghost">
+            <div className="ml-stripes" />
+            <span className="relative">Loading stream…</span>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3 bg-zinc-900 px-3 py-2">
+      <div
+        className="flex items-center gap-3 px-3 py-2"
+        style={{ background: "var(--ml-surface)" }}
+      >
         {isLive ? (
-          <span className="flex items-center gap-1 text-red-500 text-xs font-bold shrink-0 w-16">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            LIVE
+          <span className="relative overflow-hidden flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-[0.1em] uppercase shrink-0 w-16 px-1" style={{ color: "var(--ml-red)" }}>
+            <span className="ml-stripes" />
+            <span className="relative w-2 h-2 rounded-full ml-pulse" style={{ background: "var(--ml-red)" }} />
+            <span className="relative">Live</span>
           </span>
         ) : (
           <button
             onClick={jumpToLive}
-            className="text-xs font-bold text-zinc-300 hover:text-white shrink-0 px-2 py-1 rounded bg-zinc-800 w-16"
+            className="font-mono text-[11px] font-bold tracking-[0.1em] uppercase text-ml-text-mute hover:text-ml-text shrink-0 px-2 py-1 border w-16"
+            style={{ borderColor: "var(--ml-border)" }}
           >
             ⏵ Live
           </button>
@@ -484,17 +699,18 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
           onTouchStart={() => setIsDragging(true)}
           onMouseUp={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
           onTouchEnd={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
-          className="flex-1 accent-red-500"
+          className="flex-1"
         />
 
-        <span className="text-xs text-zinc-400 w-16 text-right shrink-0">
+        <span className="font-mono text-[11px] text-ml-text-faint w-16 text-right shrink-0">
           {formatBehindLive(position)}
         </span>
 
         <button
           onClick={toggleMute}
           disabled={!playerReady}
-          className="shrink-0 px-2 py-1 rounded bg-zinc-800 text-zinc-300 hover:text-white text-sm"
+          className="shrink-0 px-2 py-1 border text-ml-text-mute hover:text-ml-text text-sm"
+          style={{ borderColor: "var(--ml-border)" }}
           aria-label={isMuted ? "Unmute" : "Mute"}
         >
           {isMuted ? "🔇" : "🔊"}
@@ -508,20 +724,62 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
    SMALL UI HELPERS
 ====================================================== */
 
-function Section({ title, color, children }: any) {
+function Section({
+  title,
+  live,
+  count,
+  children,
+}: {
+  title: string;
+  live?: boolean;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  const items = React.Children.toArray(children);
+  if (items.length === 0) return null;
+
   return (
-    <section className="mb-10">
-      <h2 className={`text-xl font-bold mb-4 ${color || ""}`}>{title}</h2>
-      <div className="grid gap-4">{children}</div>
+    <section className="mb-12">
+      <div className="flex items-center gap-3 mb-4">
+        {live && (
+          <span className="w-2 h-2 rounded-full ml-pulse shrink-0" style={{ background: "var(--ml-red)" }} />
+        )}
+        <h2 className="font-mono text-xs sm:text-sm font-bold tracking-[0.16em] uppercase text-ml-text-dim">
+          {title}
+        </h2>
+        {typeof count === "number" && (
+          <span className="font-mono text-xs text-ml-text-ghost">({count})</span>
+        )}
+        <div className="flex-1 h-px" style={{ background: "var(--ml-border)" }} />
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>
     </section>
   );
 }
 
 function EventCard({ event, onClick }: any) {
   return (
-    <div onClick={onClick} className="p-4 bg-zinc-900 rounded-xl cursor-pointer">
-      <div className="font-bold">{event.name}</div>
-      <div className="text-sm text-zinc-400">{event.track}</div>
+    <div
+      onClick={onClick}
+      className="group p-5 border cursor-pointer transition-colors hover:border-ml-red"
+      style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)" }}
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="font-bold leading-snug">{event.name}</div>
+        {event.live && (
+          <span
+            className="relative overflow-hidden shrink-0 flex items-center gap-1 font-mono text-[10px] font-bold tracking-[0.1em] uppercase px-1.5 py-0.5"
+            style={{ color: "var(--ml-red)", background: "rgba(255,0,57,0.1)" }}
+          >
+            <span className="ml-stripes" />
+            <span className="relative w-1.5 h-1.5 rounded-full ml-pulse" style={{ background: "var(--ml-red)" }} />
+            <span className="relative">Live</span>
+          </span>
+        )}
+      </div>
+      <div className="font-mono text-xs tracking-[0.06em] text-ml-text-ghost">
+        {event.track}
+      </div>
     </div>
   );
 }
