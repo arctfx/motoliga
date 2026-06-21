@@ -350,6 +350,7 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
   const [position, setPosition] = useState(STREAM_BUFFER_SECONDS);
   const [isDragging, setIsDragging] = useState(false);
   const [isLive, setIsLive] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
 
   // Create the player once on mount.
   React.useEffect(() => {
@@ -420,6 +421,20 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
     setIsLive(true);
   }
 
+  function toggleMute() {
+    if (!playerRef.current) return;
+    if (isMuted) {
+      playerRef.current.unMute?.();
+      if ((playerRef.current.getVolume?.() ?? 0) === 0) {
+        playerRef.current.setVolume?.(100);
+      }
+      setIsMuted(false);
+    } else {
+      playerRef.current.mute?.();
+      setIsMuted(true);
+    }
+  }
+
   function formatBehindLive(value: number) {
     const behind = Math.max(0, liveEdge - value);
     if (behind < 2) return "LIVE";
@@ -475,6 +490,15 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
         <span className="text-xs text-zinc-400 w-16 text-right shrink-0">
           {formatBehindLive(position)}
         </span>
+
+        <button
+          onClick={toggleMute}
+          disabled={!playerReady}
+          className="shrink-0 px-2 py-1 rounded bg-zinc-800 text-zinc-300 hover:text-white text-sm"
+          aria-label={isMuted ? "Unmute" : "Mute"}
+        >
+          {isMuted ? "🔇" : "🔊"}
+        </button>
       </div>
     </div>
   );
