@@ -837,6 +837,6 @@ function getDrivers() {
 function getEvents() {
   return [
     { id: "1", name: "Sofia Drift Championship", track: "Sofia Ring", live: true, youtubeId: "NLnbL4mvoC0" },
-    { id: "2", name: "Black Sea Night Drift", track: "Varna Circuit", live: false, youtubeId: "ysz5S6PUM-U" },
+    { id: "2", name: "Black Sea Night Drift", track: "Varna Circuit", live: false, youtubeId: "6NkxQHCEKoU" },
   ];
 }
