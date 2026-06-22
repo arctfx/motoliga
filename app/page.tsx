@@ -837,6 +837,6 @@ function getDrivers() {
 function getEvents() {
   return [
     { id: "1", name: "Formula Student Germany Endurance", track: "Hockenheim, Germany", live: true, youtubeId: "NLnbL4mvoC0" },
-    { id: "2", name: "24H Endurance Karting", track: "Varna Circuit", live: false, youtubeId: "ysz5S6PUM-U" },
+    { id: "2", name: "FSG Historic Acceleration", track: "Hockenheim, Germany", live: false, youtubeId: "xGOJJVq7yXU" },
   ];
 }
