@@ -384,7 +384,7 @@ function EventPage({ event, onBack }: any) {
               onClick={onBack}
               className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text transition-colors hidden sm:block"
             >
-              ← Streams
+              Streams
             </button>
             <AuthButton />
           </div>
@@ -396,7 +396,7 @@ function EventPage({ event, onBack }: any) {
           onClick={onBack}
           className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text mb-5 transition-colors sm:hidden"
         >
-          ← Back to streams
+          Back to streams
         </button>
 
         <div className="flex items-start justify-between gap-4 mb-1">
