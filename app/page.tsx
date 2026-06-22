@@ -57,6 +57,7 @@ type Upload = {
   track: string;
   live: boolean;
   youtubeId: string;
+  driveId?: string;
   ownedByUser: boolean;
 };
 
@@ -64,10 +65,11 @@ const UPLOADS_BY_EMAIL: Record<string, Upload[]> = {
   "su.fs.racing@gmail.com": [
     {
       id: "usr-upload-01",
-      name: "Plovdiv Hillclimb — Round 3",
-      track: "Plovdiv Mountain Stage",
+      name: "EKO 25H Quali Race",
+      track: "Sofia Ring Karting Center",
       live: false,
-      youtubeId: "jfKfPfyJRdk",
+      youtubeId: "",
+      driveId: "1daxX4rF4kwkLGUda23HXLoAi67cq8V64",
       ownedByUser: true,
     },
   ],
