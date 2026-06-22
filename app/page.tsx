@@ -662,17 +662,15 @@ function DriveStream({ driveId }: { driveId: string }) {
 }
 
 const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }: { youtubeId: string }) {
-  const mountedAt = React.useRef(SERVER_START_TIME);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const playerRef = React.useRef<any>(null);
-
   const [playerReady, setPlayerReady] = useState(false);
-  const [videoDuration, setVideoDuration] = useState<number | null>(null);
-  const [liveEdge, setLiveEdge] = useState(STREAM_BUFFER_SECONDS);
-  const [position, setPosition] = useState(STREAM_BUFFER_SECONDS);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isLive, setIsLive] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+
+  // How many seconds into the video we should be right now
+  function getLivePosition() {
+    return Math.floor((Date.now() - SERVER_START_TIME) / 1000);
+  }
 
   React.useEffect(() => {
     let cancelled = false;
@@ -682,9 +680,21 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
         videoId: youtubeId,
         width: "100%",
         height: "100%",
-        playerVars: { autoplay: 1, mute: 1, controls: 0, modestbranding: 1, rel: 0, start: STREAM_BUFFER_SECONDS },
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 1,
+          modestbranding: 1,
+          rel: 0,
+          start: getLivePosition(),
+        },
         events: {
-          onReady: (e: any) => { setVideoDuration(e.target.getDuration?.() || null); setPlayerReady(true); },
+          onReady: () => {
+            // Seek again on ready in case start param drifted
+            playerRef.current?.seekTo?.(getLivePosition(), true);
+            playerRef.current?.playVideo?.();
+            setPlayerReady(true);
+          },
         },
       });
     });
@@ -693,37 +703,7 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
       playerRef.current?.destroy?.();
       playerRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [youtubeId]);
-
-  React.useEffect(() => {
-    const id = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - mountedAt.current) / 1000);
-      const edge = videoDuration
-        ? Math.min(STREAM_BUFFER_SECONDS + elapsed, videoDuration)
-        : STREAM_BUFFER_SECONDS + elapsed;
-      setLiveEdge(edge);
-      if (playerRef.current?.getCurrentTime && !isDragging) {
-        const current = playerRef.current.getCurrentTime();
-        setPosition(current);
-        setIsLive(edge - current < 3);
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isDragging, videoDuration]);
-
-  function commitSeek(value: number) {
-    playerRef.current?.seekTo?.(value, true);
-    setIsDragging(false);
-    setIsLive(liveEdge - value < 3);
-  }
-
-  function jumpToLive() {
-    playerRef.current?.seekTo?.(liveEdge, true);
-    playerRef.current?.playVideo?.();
-    setPosition(liveEdge);
-    setIsLive(true);
-  }
 
   function toggleMute() {
     if (!playerRef.current) return;
@@ -735,15 +715,6 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
       playerRef.current.mute?.();
       setIsMuted(true);
     }
-  }
-
-  function formatBehindLive(value: number) {
-    const behind = Math.max(0, liveEdge - value);
-    if (behind < 2) return "LIVE";
-    const h = Math.floor(behind / 3600);
-    const m = Math.floor((behind % 3600) / 60);
-    const s = Math.floor(behind % 60);
-    return `-${h > 0 ? `${h}:` : ""}${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
   return (
@@ -758,36 +729,14 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
         )}
       </div>
 
-      <div className="flex items-center gap-3 px-3 py-2" style={{ background: "var(--ml-surface)" }}>
-        {isLive ? (
-          <span className="relative overflow-hidden flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-[0.1em] uppercase shrink-0 w-16 px-1" style={{ color: "var(--ml-red)" }}>
-            <span className="ml-stripes" />
-            <span className="relative w-2 h-2 rounded-full ml-pulse" style={{ background: "var(--ml-red)" }} />
-            <span className="relative">Live</span>
-          </span>
-        ) : (
-          <button
-            onClick={jumpToLive}
-            className="font-mono text-[11px] font-bold tracking-[0.1em] uppercase text-ml-text-mute hover:text-ml-text shrink-0 px-2 py-1 border w-16"
-            style={{ borderColor: "var(--ml-border)" }}
-          >
-            ⏵ Live
-          </button>
-        )}
-
-        <input
-          type="range" min={0} max={liveEdge} step={1} value={position}
-          disabled={!playerReady}
-          onChange={(e) => setPosition(Number(e.target.value))}
-          onMouseDown={() => setIsDragging(true)}
-          onTouchStart={() => setIsDragging(true)}
-          onMouseUp={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
-          onTouchEnd={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
-          className="flex-1"
-        />
-
-        <span className="font-mono text-[11px] text-ml-text-faint w-16 text-right shrink-0">
-          {formatBehindLive(position)}
+      <div className="flex items-center justify-between px-3 py-2" style={{ background: "var(--ml-surface)" }}>
+        <span
+          className="relative overflow-hidden flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-[0.1em] uppercase px-1"
+          style={{ color: "var(--ml-red)" }}
+        >
+          <span className="ml-stripes" />
+          <span className="relative w-2 h-2 rounded-full ml-pulse" style={{ background: "var(--ml-red)" }} />
+          <span className="relative">Live</span>
         </span>
 
         <button
