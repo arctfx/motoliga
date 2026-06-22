@@ -627,6 +627,8 @@ function calculateFantasyPoints(team: any[]) {
 ====================================================== */
 
 const STREAM_BUFFER_SECONDS = 120 * 60;
+const SERVER_START_TIME = Date.now(); // set once when the module loads, survives re-renders
+
 
 let ytApiPromise: Promise<void> | null = null;
 function loadYouTubeApi(): Promise<void> {
@@ -660,7 +662,7 @@ function DriveStream({ driveId }: { driveId: string }) {
 }
 
 const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }: { youtubeId: string }) {
-  const mountedAt = React.useRef(Date.now());
+  const mountedAt = React.useRef(SERVER_START_TIME);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const playerRef = React.useRef<any>(null);
 
