@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
+import Providers from "./providers";
 import "./globals.css";
 
 const archivo = Archivo({
@@ -31,7 +32,7 @@ export default function RootLayout({
       className={`${archivo.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0c0d10] text-[#f5f5f0]">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

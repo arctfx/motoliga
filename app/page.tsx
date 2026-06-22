@@ -1,33 +1,27 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
 
 const TICK_LISTENERS: Function[] = [];
 
 function useRaceTick(interval = 1000) {
   const [tick, setTick] = React.useState(0);
-
   React.useEffect(() => {
     TICK_LISTENERS.push(setTick);
-
     return () => {
       const i = TICK_LISTENERS.indexOf(setTick);
       if (i > -1) TICK_LISTENERS.splice(i, 1);
     };
   }, []);
-
   React.useEffect(() => {
     const id = setInterval(() => {
       TICK_LISTENERS.forEach((fn) => fn((t: number) => t + 1));
     }, interval);
-
     return () => clearInterval(id);
   }, [interval]);
-
   return tick;
 }
-
-
 
 /* ======================================================
    GLOBAL TEAM STATE
@@ -43,28 +37,51 @@ function setGlobalTeam(team: any[]) {
 
 function useGlobalTeam() {
   const [team, setTeam] = React.useState(GLOBAL_TEAM);
-
   React.useEffect(() => {
     TEAM_LISTENERS.push(setTeam);
     return () => {
       TEAM_LISTENERS = TEAM_LISTENERS.filter((f) => f !== setTeam);
     };
   }, []);
-
   return [team, setGlobalTeam] as const;
 }
 
 /* ======================================================
+   AUTH — uploads per Google account
+   Replace the email key with your real Gmail address.
+====================================================== */
+
+type Upload = {
+  id: string;
+  name: string;
+  track: string;
+  live: boolean;
+  youtubeId: string;
+  ownedByUser: boolean;
+};
+
+const UPLOADS_BY_EMAIL: Record<string, Upload[]> = {
+  "su.fs.racing@gmail.com": [
+    {
+      id: "usr-upload-01",
+      name: "Plovdiv Hillclimb — Round 3",
+      track: "Plovdiv Mountain Stage",
+      live: false,
+      youtubeId: "jfKfPfyJRdk",
+      ownedByUser: true,
+    },
+  ],
+};
+
+/* ======================================================
    BRAND — LOGO & SHARED CHROME
-   Reconstructed from the MOTOLIGA pitch deck: a 2x2 offset
-   red pixel mark + tracked-out wordmark.
 ====================================================== */
 
 function MotoligaMark({ className = "" }: { className?: string }) {
   return (
     <img
       src="/motoliga2.svg"
-      alt="Motorliga"
+      alt="Motoliga"
       width={300}
       height={100}
       className={className}
@@ -73,19 +90,9 @@ function MotoligaMark({ className = "" }: { className?: string }) {
   );
 }
 
-function MotoligaLogo({
-  size = "md",
-  className = "",
-}: {
-  size?: "sm" | "md" | "lg";
-  className?: string;
-}) {
-  const heights =
-    size === "lg" ? "h-10" : size === "sm" ? "h-5" : "h-7";
-
-  return (
-    <MotoligaMark className={`${heights} w-auto ${className}`} />
-  );
+function MotoligaLogo({ size = "md", className = "" }: { size?: "sm" | "md" | "lg"; className?: string }) {
+  const heights = size === "lg" ? "h-10" : size === "sm" ? "h-5" : "h-7";
+  return <MotoligaMark className={`${heights} w-auto ${className}`} />;
 }
 
 function Eyebrow({ index }: { index: string }) {
@@ -101,28 +108,105 @@ function SectionRule() {
   return (
     <div
       className="h-px my-4"
-      style={{
-        background:
-          "linear-gradient(90deg, var(--ml-red) 0 48px, var(--ml-border) 48px)",
-      }}
+      style={{ background: "linear-gradient(90deg, var(--ml-red) 0 48px, var(--ml-border) 48px)" }}
     />
   );
 }
 
-function AppHeader({
-  onLogoClick,
-  right,
-}: {
-  onLogoClick?: () => void;
-  right?: React.ReactNode;
-}) {
+/* ======================================================
+   AUTH BUTTON — sign in or avatar, shown in every header
+====================================================== */
+
+function AuthButton() {
+  const { data: session, status } = useSession();
+  const [open, setOpen] = React.useState(false);
+
+  // Still loading — show nothing to avoid flash
+  if (status === "loading") return <div className="w-20 h-7" />;
+
+  // Not signed in — show a simple Sign in button
+  if (!session?.user) {
+    return (
+      <button
+        onClick={() => signIn("google")}
+        className="flex items-center gap-2 font-mono text-xs font-bold tracking-[0.1em] uppercase px-3 py-1.5 border transition-colors hover:border-ml-red hover:text-ml-text"
+        style={{ borderColor: "var(--ml-border)", color: "var(--ml-text-mute)" }}
+      >
+        <svg width="14" height="14" viewBox="0 0 18 18" aria-hidden="true" className="shrink-0">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+        </svg>
+        Sign in
+      </button>
+    );
+  }
+
+  // Signed in — show avatar + dropdown
+  const initials = session.user.name
+    ?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() ?? "?";
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 font-mono text-xs tracking-[0.08em] uppercase text-ml-text-mute hover:text-ml-text transition-colors"
+        aria-label="Account menu"
+      >
+        {session.user.image ? (
+          <img
+            src={session.user.image}
+            alt={session.user.name ?? ""}
+            className="w-7 h-7 rounded-full border"
+            style={{ borderColor: "var(--ml-border)" }}
+          />
+        ) : (
+          <span
+            className="w-7 h-7 flex items-center justify-center text-[11px] font-bold border"
+            style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)", color: "var(--ml-red)" }}
+          >
+            {initials}
+          </span>
+        )}
+        <span className="hidden sm:inline">{session.user.name?.split(" ")[0]}</span>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div
+            className="absolute right-0 top-10 z-40 w-52 border py-1 font-mono text-xs"
+            style={{ background: "var(--ml-surface)", borderColor: "var(--ml-border)" }}
+          >
+            <div
+              className="px-3 py-2 text-ml-text-ghost border-b truncate"
+              style={{ borderColor: "var(--ml-border)" }}
+            >
+              {session.user.email}
+            </div>
+            <button
+              onClick={() => { signOut(); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-ml-text-dim hover:text-ml-red transition-colors tracking-[0.06em] uppercase"
+            >
+              Sign out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ======================================================
+   APP HEADER & FOOTER
+====================================================== */
+
+function AppHeader({ onLogoClick, right }: { onLogoClick?: () => void; right?: React.ReactNode }) {
   return (
     <header
       className="sticky top-0 z-20 flex items-center justify-between px-5 sm:px-8 py-4 border-b backdrop-blur"
-      style={{
-        borderColor: "var(--ml-border)",
-        background: "rgba(12,13,16,0.85)",
-      }}
+      style={{ borderColor: "var(--ml-border)", background: "rgba(12,13,16,0.85)" }}
     >
       <button
         onClick={onLogoClick}
@@ -152,21 +236,25 @@ function AppFooter() {
 }
 
 /* ======================================================
-   APP ROOT
+   APP ROOT — no login gate, guests welcome
 ====================================================== */
 
 export default function MotorsportAppRoot() {
+  const { data: session } = useSession();
   const [route, setRoute] = useState("streams");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  const events = getEvents();
-  const liveEvents = events.filter((e) => e.live);
-  const finishedEvents = events.filter((e) => !e.live);
+  // If signed in, show that user's uploads above the public streams
+  const userEmail = session?.user?.email ?? "";
+  const userUploads: Upload[] = UPLOADS_BY_EMAIL[userEmail] ?? [];
+  const baseEvents = getEvents();
+  const allEvents = [...userUploads, ...baseEvents];
+  const liveEvents = baseEvents.filter((e) => e.live);
+  const finishedEvents = baseEvents.filter((e) => !e.live);
 
   if (route === "event" && selectedEventId) {
-    const event = events.find((e) => e.id === selectedEventId);
+    const event = allEvents.find((e) => e.id === selectedEventId);
     if (!event) return null;
-
     return <EventPage event={event} onBack={() => setRoute("streams")} />;
   }
 
@@ -178,13 +266,16 @@ export default function MotorsportAppRoot() {
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ml-bg)" }}>
       <AppHeader
         right={
-          <button
-            onClick={() => setRoute("fantasy")}
-            className="font-mono text-xs sm:text-sm font-bold tracking-[0.1em] uppercase px-4 py-2 border transition-colors hover:bg-ml-red hover:text-[#0c0d10]"
-            style={{ borderColor: "var(--ml-red)", color: "var(--ml-red)" }}
-          >
-            Fantasy League
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setRoute("fantasy")}
+              className="font-mono text-xs sm:text-sm font-bold tracking-[0.1em] uppercase px-4 py-2 border transition-colors hover:bg-ml-red hover:text-[#0c0d10]"
+              style={{ borderColor: "var(--ml-red)", color: "var(--ml-red)" }}
+            >
+              Fantasy League
+            </button>
+            <AuthButton />
+          </div>
         }
       />
 
@@ -200,15 +291,25 @@ export default function MotorsportAppRoot() {
           Stream, standings, and fantasy points in one place — updating every lap.
         </p>
 
+        {/* Only visible when signed in with an account that has uploads */}
+        {userUploads.length > 0 && (
+          <Section title="Your uploads" count={userUploads.length} owned>
+            {userUploads.map((e) => (
+              <EventCard
+                key={e.id}
+                event={e}
+                onClick={() => { setSelectedEventId(e.id); setRoute("event"); }}
+              />
+            ))}
+          </Section>
+        )}
+
         <Section title="Live now" live count={liveEvents.length}>
           {liveEvents.map((e) => (
             <EventCard
               key={e.id}
               event={e}
-              onClick={() => {
-                setSelectedEventId(e.id);
-                setRoute("event");
-              }}
+              onClick={() => { setSelectedEventId(e.id); setRoute("event"); }}
             />
           ))}
         </Section>
@@ -218,10 +319,7 @@ export default function MotorsportAppRoot() {
             <EventCard
               key={e.id}
               event={e}
-              onClick={() => {
-                setSelectedEventId(e.id);
-                setRoute("event");
-              }}
+              onClick={() => { setSelectedEventId(e.id); setRoute("event"); }}
             />
           ))}
         </Section>
@@ -237,26 +335,34 @@ export default function MotorsportAppRoot() {
 ====================================================== */
 
 function EventPage({ event, onBack }: any) {
-  React.useEffect(() => {
-    initRaceEngine();
-  }, []);
+  React.useEffect(() => { initRaceEngine(); }, []);
 
   const tick = useRaceTick(1000);
-  const drivers = getDrivers();
   const [team] = useGlobalTeam();
-
   const score = useMemo(() => calculateFantasyPoints(team), [team]);
-
   const ranked = React.useMemo(() => getRankedDrivers(), [tick]);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ml-bg)" }}>
-      <AppHeader onLogoClick={onBack} />
+      <AppHeader
+        onLogoClick={onBack}
+        right={
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text transition-colors hidden sm:block"
+            >
+              ← Streams
+            </button>
+            <AuthButton />
+          </div>
+        }
+      />
 
       <main className="flex-1 px-5 sm:px-8 py-6 sm:py-8 max-w-6xl w-full mx-auto">
         <button
           onClick={onBack}
-          className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text mb-5 transition-colors"
+          className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text mb-5 transition-colors sm:hidden"
         >
           ← Back to streams
         </button>
@@ -287,7 +393,6 @@ function EventPage({ event, onBack }: any) {
           </div>
         </div>
 
-        {/* TEAM SCORE */}
         <div
           className="mb-6 p-4 border flex items-center justify-between"
           style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)" }}
@@ -300,14 +405,12 @@ function EventPage({ event, onBack }: any) {
           </div>
         </div>
 
-        {/* DRIVERS GRID */}
         <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-ml-text-faint mb-3">
           Live standings
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {ranked.map((d) => {
             const isSelected = team.find((t) => t.id === d.id);
-
             return (
               <div
                 key={d.id}
@@ -328,7 +431,6 @@ function EventPage({ event, onBack }: any) {
                     P{d.position}
                   </span>
                 </div>
-
                 <div className="text-sm text-ml-text-mute mt-1">{d.team}</div>
                 <div className="font-mono text-xs text-ml-text-ghost mt-1">${d.value}M</div>
               </div>
@@ -356,15 +458,9 @@ function FantasyPage({ onBack }: any) {
 
   function toggleDriver(driver: any) {
     const exists = team.find((t) => t.id === driver.id);
-
-    if (exists) {
-      setTeam(team.filter((t) => t.id !== driver.id));
-      return;
-    }
-
+    if (exists) { setTeam(team.filter((t) => t.id !== driver.id)); return; }
     if (team.length >= 3) return;
     if (spent + driver.value > budget) return;
-
     setTeam([...team, driver]);
   }
 
@@ -372,12 +468,25 @@ function FantasyPage({ onBack }: any) {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ml-bg)" }}>
-      <AppHeader onLogoClick={onBack} />
+      <AppHeader
+        onLogoClick={onBack}
+        right={
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text transition-colors hidden sm:block"
+            >
+              ← Streams
+            </button>
+            <AuthButton />
+          </div>
+        }
+      />
 
       <main className="flex-1 px-5 sm:px-8 py-6 sm:py-8 max-w-6xl w-full mx-auto">
         <button
           onClick={onBack}
-          className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text mb-5 transition-colors"
+          className="font-mono text-xs tracking-[0.14em] uppercase text-ml-text-faint hover:text-ml-text mb-5 transition-colors sm:hidden"
         >
           ← Back to streams
         </button>
@@ -407,7 +516,6 @@ function FantasyPage({ onBack }: any) {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {drivers.map((d) => {
             const selected = team.find((t) => t.id === d.id);
-
             return (
               <div
                 key={d.id}
@@ -444,29 +552,17 @@ let RACE_STARTED = false;
 function initRaceEngine() {
   if (RACE_STARTED) return;
   RACE_STARTED = true;
-
-  getDrivers().forEach((d) => {
-    DRIVER_STATE[d.id] = { score: Math.random() * 100 };
-  });
-
+  getDrivers().forEach((d) => { DRIVER_STATE[d.id] = { score: Math.random() * 100 }; });
   setInterval(() => {
-    getDrivers().forEach((d) => {
-      DRIVER_STATE[d.id].score += (Math.random() - 0.5) * 10;
-    });
+    getDrivers().forEach((d) => { DRIVER_STATE[d.id].score += (Math.random() - 0.5) * 10; });
   }, 5000);
 }
 
 function getRankedDrivers() {
   return getDrivers()
-    .map((d) => ({
-      ...d,
-      score: DRIVER_STATE[d.id]?.score ?? 0,
-    }))
+    .map((d) => ({ ...d, score: DRIVER_STATE[d.id]?.score ?? 0 }))
     .sort((a, b) => b.score - a.score)
-    .map((d, i) => ({
-      ...d,
-      position: i + 1,
-    }));
+    .map((d, i) => ({ ...d, position: i + 1 }));
 }
 
 /* ======================================================
@@ -478,45 +574,26 @@ function calculateFantasyPoints(team: any[]) {
     1: 25, 2: 18, 3: 15, 4: 12, 5: 10,
     6: 8, 7: 6, 8: 4, 9: 2, 10: 1,
   };
-
   const ranked = getRankedDrivers();
-
   return team.reduce((total, driver) => {
     const found = ranked.find((d) => d.id === driver.id);
-    const pos = found?.position ?? 999;
-    return total + (points[pos] || 0);
+    return total + (points[found?.position ?? 999] || 0);
   }, 0);
 }
 
 /* ======================================================
    STREAM PLAYER
-   - Uses the YouTube IFrame Player API (not a raw <iframe src>)
-     so we can call player.seekTo() to scrub through the buffer.
-     Changing an <iframe src> forces a full reload (the original
-     bug); seekTo() jumps instantly without reloading anything.
-   - The player is created once on mount and never recreated, so
-     it's immune to the parent's once-per-second race-tick
-     re-renders.
-   - "Live edge" = how many seconds of buffered video exist right
-     now. It grows by 1 every second on its own internal timer,
-     independent of the driver table's tick.
 ====================================================== */
 
-const STREAM_BUFFER_SECONDS = 120 * 60; // 2 hours of pre-roll buffer
+const STREAM_BUFFER_SECONDS = 120 * 60;
 
 let ytApiPromise: Promise<void> | null = null;
 function loadYouTubeApi(): Promise<void> {
-  if ((window as any).YT && (window as any).YT.Player) {
-    return Promise.resolve();
-  }
+  if ((window as any).YT && (window as any).YT.Player) return Promise.resolve();
   if (ytApiPromise) return ytApiPromise;
-
   ytApiPromise = new Promise((resolve) => {
     const prevCallback = (window as any).onYouTubeIframeAPIReady;
-    (window as any).onYouTubeIframeAPIReady = () => {
-      prevCallback?.();
-      resolve();
-    };
+    (window as any).onYouTubeIframeAPIReady = () => { prevCallback?.(); resolve(); };
     if (!document.getElementById("youtube-iframe-api")) {
       const tag = document.createElement("script");
       tag.id = "youtube-iframe-api";
@@ -524,15 +601,10 @@ function loadYouTubeApi(): Promise<void> {
       document.body.appendChild(tag);
     }
   });
-
   return ytApiPromise;
 }
 
-const BufferedLiveStream = React.memo(function BufferedLiveStream({
-  youtubeId,
-}: {
-  youtubeId: string;
-}) {
+const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }: { youtubeId: string }) {
   const mountedAt = React.useRef(Date.now());
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const playerRef = React.useRef<any>(null);
@@ -545,34 +617,20 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
   const [isLive, setIsLive] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
 
-  // Create the player once on mount.
   React.useEffect(() => {
     let cancelled = false;
-
     loadYouTubeApi().then(() => {
       if (cancelled || !containerRef.current || playerRef.current) return;
-
       playerRef.current = new (window as any).YT.Player(containerRef.current, {
         videoId: youtubeId,
         width: "100%",
         height: "100%",
-        playerVars: {
-          autoplay: 1,
-          mute: 1,
-          controls: 0,
-          modestbranding: 1,
-          rel: 0,
-          start: STREAM_BUFFER_SECONDS,
-        },
+        playerVars: { autoplay: 1, mute: 1, controls: 0, modestbranding: 1, rel: 0, start: STREAM_BUFFER_SECONDS },
         events: {
-          onReady: (e: any) => {
-            setVideoDuration(e.target.getDuration?.() || null);
-            setPlayerReady(true);
-          },
+          onReady: (e: any) => { setVideoDuration(e.target.getDuration?.() || null); setPlayerReady(true); },
         },
       });
     });
-
     return () => {
       cancelled = true;
       playerRef.current?.destroy?.();
@@ -581,8 +639,6 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [youtubeId]);
 
-  // Independent 1s timer: advances the live edge and polls playback
-  // position. Does not touch the iframe, so nothing reloads.
   React.useEffect(() => {
     const id = setInterval(() => {
       const elapsed = Math.floor((Date.now() - mountedAt.current) / 1000);
@@ -590,14 +646,12 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
         ? Math.min(STREAM_BUFFER_SECONDS + elapsed, videoDuration)
         : STREAM_BUFFER_SECONDS + elapsed;
       setLiveEdge(edge);
-
       if (playerRef.current?.getCurrentTime && !isDragging) {
         const current = playerRef.current.getCurrentTime();
         setPosition(current);
         setIsLive(edge - current < 3);
       }
     }, 1000);
-
     return () => clearInterval(id);
   }, [isDragging, videoDuration]);
 
@@ -618,9 +672,7 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
     if (!playerRef.current) return;
     if (isMuted) {
       playerRef.current.unMute?.();
-      if ((playerRef.current.getVolume?.() ?? 0) === 0) {
-        playerRef.current.setVolume?.(100);
-      }
+      if ((playerRef.current.getVolume?.() ?? 0) === 0) playerRef.current.setVolume?.(100);
       setIsMuted(false);
     } else {
       playerRef.current.mute?.();
@@ -634,9 +686,7 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
     const h = Math.floor(behind / 3600);
     const m = Math.floor((behind % 3600) / 60);
     const s = Math.floor(behind % 60);
-    const mm = String(m).padStart(2, "0");
-    const ss = String(s).padStart(2, "0");
-    return `-${h > 0 ? `${h}:` : ""}${mm}:${ss}`;
+    return `-${h > 0 ? `${h}:` : ""}${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
   return (
@@ -651,10 +701,7 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
         )}
       </div>
 
-      <div
-        className="flex items-center gap-3 px-3 py-2"
-        style={{ background: "var(--ml-surface)" }}
-      >
+      <div className="flex items-center gap-3 px-3 py-2" style={{ background: "var(--ml-surface)" }}>
         {isLive ? (
           <span className="relative overflow-hidden flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-[0.1em] uppercase shrink-0 w-16 px-1" style={{ color: "var(--ml-red)" }}>
             <span className="ml-stripes" />
@@ -672,11 +719,7 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
         )}
 
         <input
-          type="range"
-          min={0}
-          max={liveEdge}
-          step={1}
-          value={position}
+          type="range" min={0} max={liveEdge} step={1} value={position}
           disabled={!playerReady}
           onChange={(e) => setPosition(Number(e.target.value))}
           onMouseDown={() => setIsDragging(true)}
@@ -709,25 +752,16 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({
 ====================================================== */
 
 function Section({
-  title,
-  live,
-  count,
-  children,
+  title, live, owned, count, children,
 }: {
-  title: string;
-  live?: boolean;
-  count?: number;
-  children: React.ReactNode;
+  title: string; live?: boolean; owned?: boolean; count?: number; children: React.ReactNode;
 }) {
-  const items = React.Children.toArray(children);
-  if (items.length === 0) return null;
-
+  if (React.Children.toArray(children).length === 0) return null;
   return (
     <section className="mb-12">
       <div className="flex items-center gap-3 mb-4">
-        {live && (
-          <span className="w-2 h-2 rounded-full ml-pulse shrink-0" style={{ background: "var(--ml-red)" }} />
-        )}
+        {live && <span className="w-2 h-2 rounded-full ml-pulse shrink-0" style={{ background: "var(--ml-red)" }} />}
+        {owned && <span className="w-2 h-2 shrink-0" style={{ background: "var(--ml-text-ghost)" }} />}
         <h2 className="font-mono text-xs sm:text-sm font-bold tracking-[0.16em] uppercase text-ml-text-dim">
           {title}
         </h2>
@@ -746,20 +780,33 @@ function EventCard({ event, onClick }: any) {
     <div
       onClick={onClick}
       className="group p-5 border cursor-pointer transition-colors hover:border-ml-red"
-      style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)" }}
+      style={{
+        borderColor: event.ownedByUser ? "var(--ml-border-strong)" : "var(--ml-border)",
+        background: "var(--ml-surface)",
+      }}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="font-bold leading-snug">{event.name}</div>
-        {event.live && (
-          <span
-            className="relative overflow-hidden shrink-0 flex items-center gap-1 font-mono text-[10px] font-bold tracking-[0.1em] uppercase px-1.5 py-0.5"
-            style={{ color: "var(--ml-red)", background: "rgba(255,0,57,0.1)" }}
-          >
-            <span className="ml-stripes" />
-            <span className="relative w-1.5 h-1.5 rounded-full ml-pulse" style={{ background: "var(--ml-red)" }} />
-            <span className="relative">Live</span>
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {event.ownedByUser && (
+            <span
+              className="font-mono text-[10px] font-bold tracking-[0.1em] uppercase px-1.5 py-0.5"
+              style={{ color: "var(--ml-text-faint)", background: "var(--ml-surface-alt)", border: "1px solid var(--ml-border)" }}
+            >
+              Your upload
+            </span>
+          )}
+          {event.live && (
+            <span
+              className="relative overflow-hidden shrink-0 flex items-center gap-1 font-mono text-[10px] font-bold tracking-[0.1em] uppercase px-1.5 py-0.5"
+              style={{ color: "var(--ml-red)", background: "rgba(255,0,57,0.1)" }}
+            >
+              <span className="ml-stripes" />
+              <span className="relative w-1.5 h-1.5 rounded-full ml-pulse" style={{ background: "var(--ml-red)" }} />
+              <span className="relative">Live</span>
+            </span>
+          )}
+        </div>
       </div>
       <div className="font-mono text-xs tracking-[0.06em] text-ml-text-ghost">
         {event.track}
@@ -789,19 +836,7 @@ function getDrivers() {
 
 function getEvents() {
   return [
-    {
-      id: "1",
-      name: "Sofia Drift Championship",
-      track: "Sofia Ring",
-      live: true,
-      youtubeId: "NLnbL4mvoC0",
-    },
-    {
-      id: "2",
-      name: "Black Sea Night Drift",
-      track: "Varna Circuit",
-      live: false,
-      youtubeId: "ysz5S6PUM-U",
-    },
+    { id: "1", name: "Sofia Drift Championship", track: "Sofia Ring", live: true, youtubeId: "NLnbL4mvoC0" },
+    { id: "2", name: "Black Sea Night Drift", track: "Varna Circuit", live: false, youtubeId: "ysz5S6PUM-U" },
   ];
 }
