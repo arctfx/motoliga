@@ -237,6 +237,111 @@ function AppFooter() {
   );
 }
 
+function TelemetryPanel() {
+  const laps = [
+    { lap: 1,  pos: 3, event: "Overtake on lap 1 — moved to P3" },
+    { lap: 2,  pos: 3, event: null },
+    { lap: 3,  pos: 3, event: null },
+    { lap: 4,  pos: 3, event: null },
+    { lap: 5,  pos: 3, event: null },
+    { lap: 6,  pos: 3, event: null },
+    { lap: 7,  pos: 3, event: null },
+    { lap: 8,  pos: 3, event: "Red flag — race suspended lap 8" },
+    { lap: 9,  pos: 3, event: "Restart" },
+    { lap: 10, pos: 3, event: "Finished P3 ✓" },
+  ];
+
+  return (
+    <div className="mb-6 border" style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)" }}>
+      <div className="px-4 pt-4 pb-2 border-b flex items-center justify-between" style={{ borderColor: "var(--ml-border)" }}>
+        <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-ml-text-faint">Telemetry</span>
+        <div className="flex items-center gap-4 font-mono text-[11px] tracking-[0.1em] uppercase">
+          <span className="text-ml-text-ghost">Start <span className="text-ml-text font-bold">P4</span></span>
+          <span style={{ color: "var(--ml-red)" }}>→</span>
+          <span className="text-ml-text-ghost">Finish <span className="font-bold" style={{ color: "var(--ml-red)" }}>P3</span></span>
+        </div>
+      </div>
+
+      {/* Position chart */}
+      <div className="px-4 pt-4 pb-2">
+        <svg viewBox="0 0 400 80" className="w-full" style={{ overflow: "visible" }}>
+          {/* Grid lines for P1–P5 */}
+          {[1,2,3,4,5].map(p => (
+            <g key={p}>
+              <line
+                x1="0" y1={(p - 1) * 16 + 8} x2="400" y2={(p - 1) * 16 + 8}
+                stroke="var(--ml-border)" strokeWidth="1"
+              />
+              <text
+                x="-6" y={(p - 1) * 16 + 12}
+                fontSize="9" textAnchor="end"
+                fill="var(--ml-text-ghost)" fontFamily="monospace"
+              >
+                P{p}
+              </text>
+            </g>
+          ))}
+
+          {/* Position line — start at P4, drop to P3 after lap 1 */}
+          <polyline
+            points={[
+              "0,56",    // pre-start P4
+              "36,56",   // end of lap 0 still P4
+              "36,40",   // overtake on lap 1 → P3
+              "400,40",  // holds P3 to finish
+            ].join(" ")}
+            fill="none"
+            stroke="var(--ml-red)"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+
+          {/* Red flag marker at lap 8 */}
+          <line
+            x1="252" y1="0" x2="252" y2="80"
+            stroke="#ff9900" strokeWidth="1" strokeDasharray="3,3"
+          />
+          <text x="255" y="10" fontSize="8" fill="#ff9900" fontFamily="monospace">RF</text>
+
+          {/* Start dot */}
+          <circle cx="0" cy="56" r="3" fill="var(--ml-text-ghost)" />
+          {/* Overtake dot */}
+          <circle cx="36" cy="40" r="3.5" fill="var(--ml-red)" />
+          {/* Finish dot */}
+          <circle cx="400" cy="40" r="3.5" fill="var(--ml-red)" />
+        </svg>
+      </div>
+
+      {/* Lap log */}
+      <div className="border-t" style={{ borderColor: "var(--ml-border)" }}>
+        {laps.filter(l => l.event).map(l => (
+          <div
+            key={l.lap}
+            className="flex items-start gap-3 px-4 py-2 border-b last:border-b-0 font-mono text-xs"
+            style={{ borderColor: "var(--ml-border)" }}
+          >
+            <span
+              className="shrink-0 w-12 text-ml-text-ghost tracking-[0.08em]"
+            >
+              LAP {l.lap}
+            </span>
+            <span
+              className="shrink-0 px-1.5 font-bold"
+              style={{
+                background: l.event?.includes("Red flag") ? "rgba(255,153,0,0.15)" : "rgba(255,0,57,0.12)",
+                color: l.event?.includes("Red flag") ? "#ff9900" : "var(--ml-red)",
+              }}
+            >
+              P{l.pos}
+            </span>
+            <span className="text-ml-text-dim">{l.event}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ======================================================
    APP ROOT — no login gate, guests welcome
 ====================================================== */
@@ -398,23 +503,27 @@ function EventPage({ event, onBack }: any) {
           </div>
         </div>
 
-        <div
-          className="mb-6 p-4 border flex items-center justify-between"
-          style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)" }}
-        >
-          <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-ml-text-faint">
-            Your fantasy points
-          </div>
-          <div className="text-2xl font-extrabold" style={{ color: "var(--ml-red)" }}>
-            {score}
-          </div>
-        </div>
+        {event.ownedByUser ? (
+          <TelemetryPanel />
+        ) : (
+          <>
+            <div
+              className="mb-6 p-4 border flex items-center justify-between"
+              style={{ borderColor: "var(--ml-border)", background: "var(--ml-surface)" }}
+            >
+              <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-ml-text-faint">
+                Your fantasy points
+              </div>
+              <div className="text-2xl font-extrabold" style={{ color: "var(--ml-red)" }}>
+                {score}
+              </div>
+            </div>
 
-        <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-ml-text-faint mb-3">
-          Live standings
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {ranked.map((d) => {
+            <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-ml-text-faint mb-3">
+              Live standings
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {ranked.map((d) => {
             const isSelected = team.find((t) => t.id === d.id);
             return (
               <div
@@ -440,9 +549,11 @@ function EventPage({ event, onBack }: any) {
                 <div className="font-mono text-xs text-ml-text-ghost mt-1">${d.value}M</div>
               </div>
             );
-          })}
-        </div>
-      </main>
+            })}
+            </div>
+          </>
+        )}
+        </main>
 
       <AppFooter />
     </div>
