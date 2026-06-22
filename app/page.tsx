@@ -260,7 +260,7 @@ function TelemetryPanel() {
         </div>
         <div className="flex items-center gap-3 px-4 py-3 font-mono text-xs" style={{ borderTop: "1px solid var(--ml-border)" }}>
           <span className="text-ml-text-ghost w-20 shrink-0">FINISH</span>
-          <span className="font-bold" style={{ color: "var(--ml-red)" }}>P3 ✓</span>
+          <span className="font-bold" style={{ color: "var(--ml-red)" }}>P3 🏎️💨🏁</span>
         </div>
       </div>
     </div>
