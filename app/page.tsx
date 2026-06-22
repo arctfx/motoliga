@@ -389,7 +389,10 @@ function EventPage({ event, onBack }: any) {
         <div className="relative overflow-hidden mb-6 border" style={{ borderColor: "var(--ml-border)" }}>
           {event.live && <div className="ml-stripes" />}
           <div className="relative aspect-video">
-            <BufferedLiveStream youtubeId={event.youtubeId} />
+            {event.driveId
+              ? <DriveStream driveId={event.driveId} />
+              : <BufferedLiveStream youtubeId={event.youtubeId} />
+            }
           </div>
         </div>
 
@@ -602,6 +605,20 @@ function loadYouTubeApi(): Promise<void> {
     }
   });
   return ytApiPromise;
+}
+
+function DriveStream({ driveId }: { driveId: string }) {
+  return (
+    <div className="w-full h-full" style={{ background: "#000" }}>
+      <iframe
+        src={`https://drive.google.com/file/d/${driveId}/preview`}
+        className="w-full h-full"
+        style={{ border: "none", display: "block" }}
+        allow="autoplay"
+        allowFullScreen
+      />
+    </div>
+  );
 }
 
 const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }: { youtubeId: string }) {
