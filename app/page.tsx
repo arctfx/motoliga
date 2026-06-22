@@ -821,22 +821,22 @@ function EventCard({ event, onClick }: any) {
 
 function getDrivers() {
   return [
-    { id: 1, name: "Ivan Petrov", team: "Red Line", value: 12 },
-    { id: 2, name: "Georgi Ivanov", team: "SpeedX", value: 10 },
-    { id: 3, name: "Nikola Dimitrov", team: "Drift King", value: 8 },
-    { id: 4, name: "Alex Ivanov", team: "Turbo Apex", value: 11 },
-    { id: 5, name: "Martin Kolev", team: "Night Shift", value: 9 },
-    { id: 6, name: "Dimitar Hristov", team: "Blackline", value: 7 },
-    { id: 7, name: "Petar Stoyanov", team: "Velocity Union", value: 13 },
-    { id: 8, name: "Stoyan Petrov", team: "Iron Drift", value: 6 },
-    { id: 9, name: "Hristo Nikolov", team: "Skyline Garage", value: 10 },
-    { id: 10, name: "Yordan Georgiev", team: "Red Zone", value: 8 },
+    { id: 1, name: "Chemnitz TU", team: "TUC Racing eV", value: 0.12 },
+    { id: 2, name: "Pforzeim TU", team: "Rennschmeide Pforzeim eV", value: 0.10 },
+    { id: 3, name: "Stockholm KTH", team: "KTH Formula Student", value: 0.8 },
+    { id: 4, name: "Lemgo TH OWL", team: "OWL Racing Team", value: 0.11 },
+    { id: 5, name: "Ghent U", team: "UGent Racing", value: 0.9 },
+    { id: 6, name: "Bath U", team: "Bath University Racing", value: 0.7 },
+    { id: 7, name: "Lisboa IST", team: "Lisboa FST", value: 0.13 },
+    { id: 8, name: "Poznan PUT", team: "PUT Motorsport Electric", value: 0.6 },
+    { id: 9, name: "Sion HES", team: "Valais Wallis Racing Team", value: 0.10 },
+    { id: 10, name: "Winterthur ZHAW", team: "Zurich UAS Racing", value: 0.8 },
   ];
 }
 
 function getEvents() {
   return [
-    { id: "1", name: "Sofia Drift Championship", track: "Sofia Ring", live: true, youtubeId: "NLnbL4mvoC0" },
-    { id: "2", name: "Black Sea Night Drift", track: "Varna Circuit", live: false, youtubeId: "6NkxQHCEKoU" },
+    { id: "1", name: "Formula Student Germany Endurance", track: "Hockenheim, Germany", live: true, youtubeId: "NLnbL4mvoC0" },
+    { id: "2", name: "24H Endurance Karting", track: "Varna Circuit", live: false, youtubeId: "ysz5S6PUM-U" },
   ];
 }
