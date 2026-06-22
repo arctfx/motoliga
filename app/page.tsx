@@ -62,18 +62,14 @@ function useGlobalTeam() {
 
 function MotoligaMark({ className = "" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 28 28"
+    <img
+      src="/motoliga2.svg"
+      alt="Motorliga"
+      width={300}
+      height={100}
       className={className}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
-    >
-      <rect x="0" y="0" width="12" height="12" fill="#ff0039" />
-      <rect x="16" y="0" width="12" height="12" fill="#ff0039" />
-      <rect x="4" y="12" width="12" height="12" fill="#ff0039" />
-      <rect x="20" y="12" width="12" height="12" fill="#ff0039" opacity="0.55" />
-    </svg>
+    />
   );
 }
 
@@ -84,23 +80,11 @@ function MotoligaLogo({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const dims =
-    size === "lg"
-      ? { mark: "w-9 h-9", text: "text-2xl", gap: "gap-3" }
-      : size === "sm"
-      ? { mark: "w-4 h-4", text: "text-sm", gap: "gap-2" }
-      : { mark: "w-6 h-6", text: "text-lg", gap: "gap-2.5" };
+  const heights =
+    size === "lg" ? "h-10" : size === "sm" ? "h-5" : "h-7";
 
   return (
-    <div className={`flex items-center ${dims.gap} ${className}`}>
-      <MotoligaMark className={`${dims.mark} shrink-0`} />
-      <span
-        className={`font-mono font-bold tracking-[0.12em] uppercase ${dims.text}`}
-        style={{ color: "var(--ml-text)" }}
-      >
-        Motoliga
-      </span>
-    </div>
+    <MotoligaMark className={`${heights} w-auto ${className}`} />
   );
 }
 
