@@ -661,18 +661,20 @@ function DriveStream({ driveId }: { driveId: string }) {
   );
 }
 
+
 const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }: { youtubeId: string }) {
-  const mountedAt = React.useRef(SERVER_START_TIME);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const playerRef = React.useRef<any>(null);
 
   const [playerReady, setPlayerReady] = useState(false);
-  const [videoDuration, setVideoDuration] = useState<number | null>(null);
-  const [liveEdge, setLiveEdge] = useState(STREAM_BUFFER_SECONDS);
-  const [position, setPosition] = useState(STREAM_BUFFER_SECONDS);
+  const [duration, setDuration] = useState<number>(0);
+  const [position, setPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [isLive, setIsLive] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+
+  function getLivePosition() {
+    return Math.floor((Date.now() - SERVER_START_TIME) / 1000);
+  }
 
   React.useEffect(() => {
     let cancelled = false;
@@ -682,9 +684,17 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
         videoId: youtubeId,
         width: "100%",
         height: "100%",
-        playerVars: { autoplay: 1, mute: 1, controls: 0, modestbranding: 1, rel: 0, start: STREAM_BUFFER_SECONDS },
+        playerVars: { autoplay: 1, mute: 1, controls: 0, modestbranding: 1, rel: 0, start: 0 },
         events: {
-          onReady: (e: any) => { setVideoDuration(e.target.getDuration?.() || null); setPlayerReady(true); },
+          onReady: (e: any) => {
+            const dur = e.target.getDuration?.() || 0;
+            setDuration(dur);
+            const pos = Math.min(getLivePosition(), dur);
+            e.target.seekTo(pos, true);
+            e.target.playVideo();
+            setPosition(pos);
+            setPlayerReady(true);
+          },
         },
       });
     });
@@ -693,36 +703,31 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
       playerRef.current?.destroy?.();
       playerRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [youtubeId]);
 
   React.useEffect(() => {
     const id = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - mountedAt.current) / 1000);
-      const edge = videoDuration
-        ? Math.min(STREAM_BUFFER_SECONDS + elapsed, videoDuration)
-        : STREAM_BUFFER_SECONDS + elapsed;
-      setLiveEdge(edge);
-      if (playerRef.current?.getCurrentTime && !isDragging) {
-        const current = playerRef.current.getCurrentTime();
-        setPosition(current);
-        setIsLive(edge - current < 3);
+      if (!isDragging && playerRef.current?.getCurrentTime) {
+        setPosition(playerRef.current.getCurrentTime());
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [isDragging, videoDuration]);
+  }, [isDragging]);
 
   function commitSeek(value: number) {
-    playerRef.current?.seekTo?.(value, true);
+    const livePos = getLivePosition();
+    const target = Math.min(value, duration || livePos, livePos);
+    playerRef.current?.seekTo?.(target, true);
+    playerRef.current?.playVideo?.();
+    setPosition(target);
     setIsDragging(false);
-    setIsLive(liveEdge - value < 3);
   }
 
   function jumpToLive() {
-    playerRef.current?.seekTo?.(liveEdge, true);
+    const pos = Math.min(getLivePosition(), duration || Infinity);
+    playerRef.current?.seekTo?.(pos, true);
     playerRef.current?.playVideo?.();
-    setPosition(liveEdge);
-    setIsLive(true);
+    setPosition(pos);
   }
 
   function toggleMute() {
@@ -737,9 +742,13 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
     }
   }
 
-  function formatBehindLive(value: number) {
-    const behind = Math.max(0, liveEdge - value);
-    if (behind < 2) return "LIVE";
+  const livePos = getLivePosition();
+  const scrubMax = duration ? Math.min(livePos, duration) : livePos;
+  const isAtLive = scrubMax - position < 5;
+
+  function formatBehind() {
+    const behind = Math.max(0, scrubMax - position);
+    if (behind < 5) return "LIVE";
     const h = Math.floor(behind / 3600);
     const m = Math.floor((behind % 3600) / 60);
     const s = Math.floor(behind % 60);
@@ -759,8 +768,11 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
       </div>
 
       <div className="flex items-center gap-3 px-3 py-2" style={{ background: "var(--ml-surface)" }}>
-        {isLive ? (
-          <span className="relative overflow-hidden flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-[0.1em] uppercase shrink-0 w-16 px-1" style={{ color: "var(--ml-red)" }}>
+        {isAtLive ? (
+          <span
+            className="relative overflow-hidden flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-[0.1em] uppercase shrink-0 w-16 px-1"
+            style={{ color: "var(--ml-red)" }}
+          >
             <span className="ml-stripes" />
             <span className="relative w-2 h-2 rounded-full ml-pulse" style={{ background: "var(--ml-red)" }} />
             <span className="relative">Live</span>
@@ -776,18 +788,17 @@ const BufferedLiveStream = React.memo(function BufferedLiveStream({ youtubeId }:
         )}
 
         <input
-          type="range" min={0} max={liveEdge} step={1} value={position}
+          type="range" min={0} max={scrubMax} step={1} value={position}
           disabled={!playerReady}
-          onChange={(e) => setPosition(Number(e.target.value))}
-          onMouseDown={() => setIsDragging(true)}
-          onTouchStart={() => setIsDragging(true)}
+          onChange={(e) => { setIsDragging(true); setPosition(Number(e.target.value)); }}
           onMouseUp={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
           onTouchEnd={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
           className="flex-1"
+          style={{ direction: "rtl" }}
         />
 
         <span className="font-mono text-[11px] text-ml-text-faint w-16 text-right shrink-0">
-          {formatBehindLive(position)}
+          {formatBehind()}
         </span>
 
         <button
